@@ -1,0 +1,20 @@
+[
+  {
+    "id": "8",
+    "titulo": "Creacion de BD Mongo",
+    "descripcion": "Crear una Base de datos en Mongo DB",
+    "asignatura": "BASES DE DATOS NO ESTRUCTURADAS",
+    "fecha_entrega": "2026-05-30",
+    "prioridad": "media",
+    "estado": "en proceso"
+  },
+  {
+    "id": "9",
+    "titulo": "Implementación de Máquina de Estados para Personaje Principal",
+    "descripcion": "Programar e integrar la lógica de animación y movimiento (correr, saltar, atacar) del personaje principal utilizando una máquina de estados finitos (FSM) en el motor de desarrollo, asegurando la transición limpia entre los sprites y clips de animación.",
+    "asignatura": "Computación Gráfica y Videojuegos",
+    "fecha_entrega": "2026-05-28",
+    "prioridad": "alta",
+    "estado": "en proceso"
+  }
+]
