@@ -2,9 +2,9 @@
 
 ## 1. Arquitectura del Sistema
 El sistema seguirá una arquitectura cliente-servidor desacoplada:
-* [cite_start]**Backend:** API REST construida en Python puro (utilizando el módulo nativo `http.server` o un microframework ligero)[cite: 47, 88].
-* [cite_start]**Frontend:** Aplicación web SPA (Single Page Application) desarrollada con TypeScript, HTML5 y estilos con Tailwind CSS[cite: 43, 44, 45].
-* [cite_start]**Persistencia:** Almacenamiento de datos local en un archivo en formato JSON (`tasks.json`).
+* **Backend:** API REST construida en Python puro (utilizando el módulo nativo `http.server` o un microframework ligero)[cite: 47, 88].
+* **Frontend:** Aplicación web SPA (Single Page Application) desarrollada con TypeScript, HTML5 y estilos con Tailwind CSS[cite: 43, 44, 45].
+* **Persistencia:** Almacenamiento de datos local en un archivo en formato JSON (`tasks.json`).
 
 ## 2. Modelo de Datos (JSON)
 Las tareas se almacenarán en la carpeta `backend/` dentro de un archivo `tasks.json` con la siguiente estructura de ejemplo:

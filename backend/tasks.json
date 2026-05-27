@@ -2,7 +2,7 @@
   {
     "id": "8",
     "titulo": "Creacion de BD Mongo",
-    "descripcion": "Crear una Base de datos en Mongo DB",
+    "descripcion": "Crear una Base de datos en Mongo DB y hacer informe",
     "asignatura": "BASES DE DATOS NO ESTRUCTURADAS",
     "fecha_entrega": "2026-05-30",
     "prioridad": "media",
