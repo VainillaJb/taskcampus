@@ -6,13 +6,14 @@ Este proyecto fue desarrollado aplicando la metodología **Spec Driven Developme
 
 ## Estructura del Repositorio
 * `specs/`: Contiene la especificación funcional y el plan técnico del sistema.
-* `backend/`: Código fuente en Python de la API REST y persistencia local en JSON.
+* `backend/`: Código fuente en Python de la API REST con persistencia en PostgreSQL.
 * `frontend/`: Interfaz de usuario interactiva construida con HTML5, Tailwind CSS y JavaScript/TypeScript.
   * `frontend/app.ts` es el código fuente en TypeScript.
   * `frontend/app.js` es la versión compilada que se carga en el navegador.
 
 ## Requisitos Previos
 * Python 3.14 o superior instalado localmente.
+* PostgreSQL local instalado y en ejecución.
 * Un navegador web moderno (Chrome, Edge, Firefox, etc.).
 
 ## Instrucciones de Instalación y Uso
@@ -23,11 +24,29 @@ Este proyecto fue desarrollado aplicando la metodología **Spec Driven Developme
    ```bash
    cd backend
    ```
-3. Inicie el servidor:
+3. Instale dependencias Python si no lo ha hecho:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Configuración de la Base de Datos
+
+- Asegúrese de tener PostgreSQL instalado y corriendo.
+
+- En pgAdmin, cree una base de datos llamada taskcampus.
+
+- En la herramienta de consulta (Query Tool) de pgAdmin, ejecute el contenido del archivo backend/db_init.sql.
+
+- Cree un archivo llamado .env dentro de la carpeta backend/ con sus credenciales:
+
+   DB_NAME=taskcampus
+   DB_USER=tu_usuario
+   DB_PASSWORD=tu_contraseña
+     ```
+5. Inicie el servidor:
    ```bash
    python app.py
    ```
-4. Deje la terminal abierta mientras use la aplicación.
+6. Deje la terminal abierta mientras use la aplicación.
 
 ### 2. Abrir el Frontend
 1. Abra el archivo `frontend/index.html` en su navegador.
@@ -56,7 +75,7 @@ Esto instalará TypeScript localmente y generará `frontend/app.js` a partir de 
 * El panel superior muestra el total de tareas, pendientes, finalizadas y prioridad alta.
 
 ### 4. Notas
-* El backend usa un archivo JSON local en `backend/tasks.json`.
+* El backend usa PostgreSQL para almacenar las tareas.
 * No cierre la terminal del backend mientras esté usando la app.
 
 ### 5. Autor

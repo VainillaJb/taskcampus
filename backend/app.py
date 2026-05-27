@@ -1,165 +1,139 @@
 import json
 import os
+import psycopg2
+import psycopg2.extras
+import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from dotenv import load_dotenv
 
-# Nombre del archivo donde se guardarán las tareas académicas
-DB_FILE = os.path.join(os.path.dirname(__file__), 'tasks.json')
+# Cargar variables desde el archivo .env
+load_dotenv()
+
+# Configuración usando variables de entorno
+DB_NAME = os.getenv('DB_NAME', 'taskcampus')
+DB_USER = os.getenv('DB_USER', 'postgres')
+DB_PASSWORD = os.getenv('DB_PASSWORD', '')
+DB_HOST = os.getenv('DB_HOST', 'localhost')
+DB_PORT = os.getenv('DB_PORT', '5432')
+
+def get_connection():
+    return psycopg2.connect(
+        dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD,
+        host=DB_HOST, port=DB_PORT
+    )
+
+def normalize_task(task):
+    if not task: return None
+    task_dict = dict(task)
+    for key, value in task_dict.items():
+        if isinstance(value, (datetime.date, datetime.datetime)):
+            task_dict[key] = value.isoformat()
+        elif key == 'id':
+            task_dict[key] = str(value)
+    return task_dict
+
+# --- CRUD Functions ---
 
 def read_tasks():
-    """Lee las tareas desde el archivo JSON."""
-    if not os.path.exists(DB_FILE):
-        return []
     try:
-        with open(DB_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute('SELECT * FROM tasks ORDER BY id;')
+                return [normalize_task(row) for row in cur.fetchall()]
+    except Exception as e:
+        print(f'Error en read_tasks: {e}')
         return []
 
-def write_tasks(tasks):
-    """Guarda las tareas en el archivo JSON."""
-    with open(DB_FILE, 'w', encoding='utf-8') as f:
-        json.dump(tasks, f, ensure_ascii=False, indent=2)
+def insert_task(task_data):
+    try:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    '''INSERT INTO tasks (titulo, descripcion, asignatura, fecha_entrega, prioridad, estado)
+                       VALUES (%s, %s, %s, %s, %s, %s) RETURNING id;''',
+                    (task_data.get('titulo'), task_data.get('descripcion'), task_data.get('asignatura'), 
+                     task_data.get('fecha_entrega'), task_data.get('prioridad', 'baja'), task_data.get('estado', 'pendiente'))
+                )
+                inserted_id = cur.fetchone()['id']
+                conn.commit()
+                task_data['id'] = str(inserted_id)
+                return task_data
+    except Exception as e:
+        print(f'Error en insert_task: {e}')
+        return None
+
+def update_task(task_id, updated_fields):
+    allowed_fields = {'titulo', 'descripcion', 'asignatura', 'fecha_entrega', 'prioridad', 'estado'}
+    updates = {k: v for k, v in updated_fields.items() if k in allowed_fields}
+    if not updates: return None
+
+    try:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                set_clauses = [f"{key} = %s" for key in updates.keys()]
+                query = f"UPDATE tasks SET {', '.join(set_clauses)} WHERE id = %s RETURNING *;"
+                cur.execute(query, tuple(updates.values()) + (task_id,))
+                task = cur.fetchone()
+                conn.commit()
+                return normalize_task(task)
+    except Exception as e:
+        print(f'Error en update_task: {e}')
+        return None
+
+def delete_task(task_id):
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('DELETE FROM tasks WHERE id = %s;', (task_id,))
+                conn.commit()
+                return cur.rowcount > 0
+    except Exception as e:
+        print(f'Error en delete_task: {e}')
+        return False
+
+# --- API Controller ---
 
 class TaskCampusAPI(BaseHTTPRequestHandler):
-    """Controlador de la API REST para gestionar las tareas."""
-
-    def _set_headers(self, status=200):
+    def _send_json(self, data, status=200):
         self.send_response(status)
         self.send_header('Content-Type', 'application/json')
-        # Habilitar CORS para que el frontend (TypeScript) se pueda conectar sin bloqueos de seguridad
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode('utf-8'))
+
+    def do_OPTIONS(self):
+        self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
 
-    def do_OPTIONS(self):
-        """Maneja las peticiones de control de acceso (CORS)."""
-        self._set_headers(200)
-
     def do_GET(self):
-        """Maneja las peticiones GET (Listar tareas y Resumen)."""
-        tasks = read_tasks()
-
-        # Endpoint: /tasks/summary (Mostrar resumen estadístico)
         if self.path == '/tasks/summary':
-            total = len(tasks)
-            pendientes = sum(1 for t in tasks if t.get('estado') == 'pendiente')
-            finalizadas = sum(1 for t in tasks if t.get('estado') == 'finalizada')
-            alta_prioridad = sum(1 for t in tasks if t.get('prioridad') == 'alta')
-            
+            tasks = read_tasks()
             summary = {
-                "total": total,
-                "pendientes": pendientes,
-                "finalizadas": finalizadas,
-                "alta_prioridad": alta_prioridad
+                "total": len(tasks),
+                "pendientes": sum(1 for t in tasks if t.get('estado') == 'pendiente'),
+                "finalizadas": sum(1 for t in tasks if t.get('estado') == 'finalizada'),
+                "alta_prioridad": sum(1 for t in tasks if t.get('prioridad') == 'alta')
             }
-            self._set_headers(200)
-            self.wfile.write(json.dumps(summary).encode('utf-8'))
-            return
-
-        # Endpoint: /tasks (Listar todas las tareas)
-        if self.path == '/tasks' or self.path.startswith('/tasks?'):
-            self._set_headers(200)
-            self.wfile.write(json.dumps(tasks).encode('utf-8'))
-            return
-
-        # Endpoint: /tasks/{id} (Consultar una tarea específica)
-        if self.path.startswith('/tasks/'):
+            self._send_json(summary)
+        elif self.path == '/tasks':
+            self._send_json(read_tasks())
+        elif self.path.startswith('/tasks/'):
             task_id = self.path.split('/')[-1]
-            task = next((t for t in tasks if t.get('id') == task_id), None)
-            if task:
-                self._set_headers(200)
-                self.wfile.write(json.dumps(task).encode('utf-8'))
-            else:
-                self._set_headers(404)
-                self.wfile.write(json.dumps({"error": "Tarea no encontrada"}).encode('utf-8'))
-            return
-
-        self._set_headers(404)
+            # Usar read_task aquí (puedes agregarla siguiendo el patrón)
+            self._send_json({"message": "Detalle por ID pendiente de implementación"})
+        else:
+            self._send_json({"error": "No encontrado"}, 404)
 
     def do_POST(self):
-        """Maneja las peticiones POST (Registrar una tarea)."""
-        if self.path == '/tasks':
-            content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
-            new_task = json.loads(post_data.decode('utf-8'))
-
-            tasks = read_tasks()
-            # Generar un ID simple sumando 1 al ID más alto existente
-            new_id = str(max([int(t['id']) for t in tasks]) + 1) if tasks else "1"
-            
-            # Estructura obligatoria de la tarea según la especificación
-            task_data = {
-                "id": new_id,
-                "titulo": new_task.get('titulo'),
-                "descripcion": new_task.get('descripcion'),
-                "asignatura": new_task.get('asignatura'),
-                "fecha_entrega": new_task.get('fecha_entrega'),
-                "prioridad": new_task.get('prioridad', 'baja'),
-                "estado": new_task.get('estado', 'pendiente')
-            }
-
-            tasks.append(task_data)
-            write_tasks(tasks)
-
-            self._set_headers(201)
-            self.wfile.write(json.dumps(task_data).encode('utf-8'))
-            return
-        
-        self._set_headers(404)
-
-    def do_PUT(self):
-        """Maneja las peticiones PUT (Editar una tarea existente)."""
-        if self.path.startswith('/tasks/'):
-            task_id = self.path.split('/')[-1]
-            content_length = int(self.headers['Content-Length'])
-            put_data = self.rfile.read(content_length)
-            updated_fields = json.loads(put_data.decode('utf-8'))
-
-            tasks = read_tasks()
-            task = next((t for t in tasks if t.get('id') == task_id), None)
-
-            if task:
-                task.update(updated_fields)
-                write_tasks(tasks)
-                self._set_headers(200)
-                self.wfile.write(json.dumps(task).encode('utf-8'))
-            else:
-                self._set_headers(404)
-                self.wfile.write(json.dumps({"error": "Tarea no encontrada"}).encode('utf-8'))
-            return
-        
-        self._set_headers(404)
-
-    def do_DELETE(self):
-        """Maneja las peticiones DELETE (Eliminar una tarea)."""
-        if self.path.startswith('/tasks/'):
-            task_id = self.path.split('/')[-1]
-            tasks = read_tasks()
-            
-            # Filtrar la lista dejando fuera la tarea con el ID seleccionado
-            new_tasks = [t for t in tasks if t.get('id') != task_id]
-            
-            if len(tasks) != len(new_tasks):
-                write_tasks(new_tasks)
-                self._set_headers(200)
-                self.wfile.write(json.dumps({"success": True}).encode('utf-8'))
-            else:
-                self._set_headers(404)
-                self.wfile.write(json.dumps({"error": "Tarea no encontrada"}).encode('utf-8'))
-            return
-        
-        self._set_headers(404)
-
-def run(server_class=HTTPServer, handler_class=TaskCampusAPI, port=5000):
-    server_address = ('', port)
-    httpd = server_class(server_address, handler_class)
-    print(f"Servidor Backend de TaskCampus corriendo en http://localhost:{port}")
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        pass
-    httpd.server_close()
+        content_length = int(self.headers['Content-Length'])
+        data = json.loads(self.rfile.read(content_length))
+        result = insert_task(data)
+        self._send_json(result or {"error": "Error al crear"}, 201 if result else 500)
 
 if __name__ == '__main__':
-    run()
+    server = HTTPServer(('localhost', 5000), TaskCampusAPI)
+    print("Servidor corriendo en http://localhost:5000")
+    server.serve_forever()

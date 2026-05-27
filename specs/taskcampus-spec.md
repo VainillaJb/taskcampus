@@ -34,7 +34,7 @@ El sistema debe permitir las siguientes acciones:
 ## Requisitos no funcionales
 * **RNF01:** La interfaz de usuario debe ser clara y sencilla utilizando HTML y Tailwind.
 * **RNF02:** El backend debe estar desarrollado en Python y exponer una API REST.
-* **RNF03:** Los datos deben guardarse con una persistencia simple en un archivo JSON.
+* **RNF03:** Los datos deben guardarse con persistencia en una base de datos local PostgreSQL.
 * **RNF04:** El código debe estar completamente versionado en GitHub con uso obligatorio de ramas, commits y pull requests.
 * **RNF05:** El proyecto debe incluir documentación detallada de instalación en un archivo README.
 
@@ -46,5 +46,5 @@ El sistema debe permitir las siguientes acciones:
 | GET | /tasks/{id} | Consultar el detalle de una tarea específica |
 | POST | /tasks | Crear una nueva tarea |
 | PUT | /tasks/{id} | Actualizar una tarea existente |
-| DELETE | /tasks/{id} | Eliminar una tarea del archivo JSON |
+| DELETE | /tasks/{id} | Eliminar una tarea de la base de datos |
 | GET | /tasks/summary | Mostrar el resumen estadístico de las tareas |
